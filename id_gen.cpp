@@ -39,8 +39,8 @@ int alloc_id()
 
 void release_id(int id)
 {
-	if (id < 0 || id >= MAX_ID)
-		return;
+    if (id < 0 || id >= MAX_ID)
+        return;
 
     int index = id / MAX_BITMAP_VALUE;
     int shift   = id % MAX_BITMAP_VALUE;
