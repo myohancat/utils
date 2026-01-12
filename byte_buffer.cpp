@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <sys/time.h>
 
-typedef struct ByteBuffer_s 
+typedef struct ByteBuffer_s
 {
     bool mEOS;
     int  mCapacity;
@@ -32,18 +32,18 @@ typedef struct ByteBuffer_s
 #define MIN(x, y)        (x > y)?(y):(x)
 #endif
 
-ByteBuffer ByteBuffer_Create(int capacity) 
+ByteBuffer ByteBuffer_Create(int capacity)
 {
     int rc;
     pthread_condattr_t attr;
-    
+
     ByteBuffer buffer = (ByteBuffer)malloc(sizeof(ByteBuffer_t) + sizeof(byte) * capacity);
     if(buffer == NULL)
     {
         printf("Cannot allocate byte buffer !!\n");
         goto ERROR;
     }
-    
+
     if((rc = pthread_mutex_init(&buffer->mLock, NULL)) != 0)
     {
         printf("Cannot init mutext !!\n");
@@ -70,7 +70,7 @@ ByteBuffer ByteBuffer_Create(int capacity)
         pthread_mutex_destroy(&buffer->mLock);
         goto ERROR;
     }
-    
+
     buffer->mEOS      = 0;
     buffer->mCapacity = capacity;
     buffer->mSize     = 0;
@@ -100,7 +100,7 @@ void ByteBuffer_Delete(ByteBuffer buffer)
     pthread_cond_destroy(&buffer->mCondVarEmpty);
 
     free(buffer);
-} 
+}
 
 int ByteBuffer_Write(ByteBuffer buffer, const byte* data, int len, int timeout)
 {
@@ -120,14 +120,14 @@ int ByteBuffer_Write(ByteBuffer buffer, const byte* data, int len, int timeout)
 
     pthread_mutex_lock(&buffer->mLock);
 
-    if(AVAILABLE_SPACE(buffer) == 0 && !buffer->mEOS)
+    while(AVAILABLE_SPACE(buffer) == 0 && !buffer->mEOS)
     {
         if(timeout == 0)
         {
             pthread_mutex_unlock(&buffer->mLock);
             return 0;
         }
-        
+
         if(timeout == -1)
         {
             rc = pthread_cond_wait(&buffer->mCondVarFull, &buffer->mLock);
@@ -141,14 +141,14 @@ int ByteBuffer_Write(ByteBuffer buffer, const byte* data, int len, int timeout)
             target.tv_nsec = now.tv_usec * 1000 + (timeout%1000)*1000000;
             target.tv_sec = now.tv_sec + (timeout/1000);
 
-            if(target.tv_nsec > 1000000000) 
+            if(target.tv_nsec > 1000000000)
             {
                 target.tv_nsec -=  1000000000;
                 target.tv_sec ++;
             }
-    
+
             rc = pthread_cond_timedwait(&buffer->mCondVarFull, &buffer->mLock, &target);
-            if(rc == ETIMEDOUT) 
+            if(rc == ETIMEDOUT)
             {
                 pthread_mutex_unlock(&buffer->mLock);
                 return BUFFER_ERROR_TIMEOUT;
@@ -188,7 +188,7 @@ int ByteBuffer_Write(ByteBuffer buffer, const byte* data, int len, int timeout)
     return len;
 }
 
-int ByteBuffer_Read(ByteBuffer buffer, byte* data, int len, int timeout) 
+int ByteBuffer_Read(ByteBuffer buffer, byte* data, int len, int timeout)
 {
     int rc;
     int readSize;
@@ -201,14 +201,14 @@ int ByteBuffer_Read(ByteBuffer buffer, byte* data, int len, int timeout)
 
     pthread_mutex_lock(&buffer->mLock);
 
-    if(buffer->mSize == 0 || !buffer->mEOS)
+    while(buffer->mSize == 0 || !buffer->mEOS)
     {
         if(timeout == 0)
         {
             pthread_mutex_unlock(&buffer->mLock);
             return 0;
         }
-        
+
         if(timeout == -1)
         {
             rc = pthread_cond_wait(&buffer->mCondVarEmpty, &buffer->mLock);
@@ -222,14 +222,14 @@ int ByteBuffer_Read(ByteBuffer buffer, byte* data, int len, int timeout)
             target.tv_nsec = now.tv_usec * 1000 + (timeout%1000)*1000000;
             target.tv_sec = now.tv_sec + (timeout/1000);
 
-            if(target.tv_nsec > 1000000000) 
+            if(target.tv_nsec > 1000000000)
             {
                 target.tv_nsec -=  1000000000;
                 target.tv_sec ++;
             }
-    
+
             rc = pthread_cond_timedwait(&buffer->mCondVarEmpty, &buffer->mLock, &target);
-            if(rc == ETIMEDOUT) 
+            if(rc == ETIMEDOUT)
             {
                 pthread_mutex_unlock(&buffer->mLock);
                 return BUFFER_ERROR_TIMEOUT;
@@ -309,7 +309,7 @@ void ByteBuffer_SetEOS(ByteBuffer buffer, bool isEOS)
     pthread_cond_signal(&buffer->mCondVarFull);
     pthread_cond_signal(&buffer->mCondVarEmpty);
 
-    pthread_mutex_unlock(&buffer->mLock);    
+    pthread_mutex_unlock(&buffer->mLock);
 }
 
 int ByteBuffer_Flush(ByteBuffer buffer)
@@ -324,7 +324,7 @@ int ByteBuffer_Flush(ByteBuffer buffer)
     buffer->mRear  = 0;
 
     pthread_mutex_unlock(&buffer->mLock);
-    
+
     return 0;
 }
 
